@@ -296,8 +296,8 @@ def create_plots(results_df: pd.DataFrame, history_dict: Dict):
             xaxis_title='Сделок в неделю',
             yaxis_title='Значение',
             height=500
-        )
-    
+        ) 
+     
     return fig1, fig2, fig3, fig4
 
 # Основная часть приложения
