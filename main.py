@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import plotly.express as px
+import plotly.exfpress as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from typing import Dict, List, Tuple
@@ -50,7 +50,7 @@ with st.sidebar:
                           help="Например: 1.35 означает 35% прибыли от успешной сделки")
     
     n_simulations = st.number_input("Количество симуляций", min_value=100, max_value=100000, 
-                                   value=1000, step=100,
+                                   value=10_000, step=1_000,
                                    help="Чем больше симуляций, тем точнее результаты")
     
     # Кнопка запуска
