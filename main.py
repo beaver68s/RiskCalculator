@@ -105,14 +105,14 @@ def monte_carlo_simulation_with_history(
             p95_cumulative = np.percentile(cumulative_profits_all, 95, axis=0)
             
             history_dict[cnt_deal] = {
-                'median': median_cumulative,
-                'p5': p5_cumulative,
-                'p25': p25_cumulative,
-                'p75': p75_cumulative,
-                'p95': p95_cumulative,
+                'median': np.round(median_cumulative, 2),
+                'p5': np.round(p5_cumulative, 2),
+                'p25': np.round(p25_cumulative, 2),
+                'p75': np.round(p75_cumulative, 2),
+                'p95': np.round(p95_cumulative, 2),
                 'weeks': list(range(1, weeks + 1)),
-                'all_cumulative': cumulative_profits_all,
-                'final_profits': final_profits
+                'all_cumulative': np.round(cumulative_profits_all, 2),
+                'final_profits': np.round(final_profits, 2)
             }
         
         # Статистика
@@ -126,21 +126,25 @@ def monte_carlo_simulation_with_history(
         
         all_simulations_results.append({
             'deals_per_week': cnt_deal,
-            'win_rate': win_rate,
-            'avg_profit': avg_profit,
+            'win_rate': round(win_rate, 2),
+            'avg_profit': round(avg_profit, 2),
             'mean_profit': round(mean_profit, 2),
             'median_profit': round(median_profit, 2),
             'std_profit': round(std_profit, 2),
             'percentile_5': round(percentile_5, 2),
             'percentile_95': round(percentile_95, 2),
-            'probability_loss_%': round(probability_loss, 1),
+            'probability_loss_%': round(probability_loss, 2),
             'sharpe_ratio': round(sharpe_ratio, 2),
             'expected_profit': round(cnt_deal * weeks * ((win_rate * profit_per_win) - ((1 - win_rate) * 1)), 2)
         })
     
     results_df = pd.DataFrame(all_simulations_results)
-    results_df['profit_per_deal'] = results_df['mean_profit'] / (results_df['deals_per_week'] * weeks)
-    results_df['mean_weekly_profit'] = results_df['mean_profit'] / weeks
+    results_df['profit_per_deal'] = np.round(results_df['mean_profit'] / (results_df['deals_per_week'] * weeks), 2)
+    results_df['mean_weekly_profit'] = np.round(results_df['mean_profit'] / weeks, 2)
+    
+    # Округляем все числовые колонки в DataFrame
+    numeric_cols = results_df.select_dtypes(include=[np.number]).columns
+    results_df[numeric_cols] = results_df[numeric_cols].round(2)
     
     return results_df, history_dict
 
@@ -240,6 +244,8 @@ def create_plots(results_df: pd.DataFrame, history_dict: Dict):
     
     if len(heatmap_cols) > 1:
         corr_matrix = results_df[heatmap_cols].corr()
+        # Округляем корреляционную матрицу
+        corr_matrix = corr_matrix.round(2)
         fig3 = px.imshow(
             corr_matrix,
             text_auto='.2f',
@@ -267,11 +273,13 @@ def create_plots(results_df: pd.DataFrame, history_dict: Dict):
     if available_metrics:
         for i, metric in enumerate(available_metrics):
             color = colors[i % len(colors)]
+            # Используем уже округленные значения из results_df
+            y_values = results_df[metric]
             fig4.add_trace(go.Bar(
                 x=results_df['deals_per_week'],
-                y=results_df[metric],
+                y=y_values,
                 name=metric.replace('_', ' ').title(),
-                text=results_df[metric].round(2),
+                text=y_values.round(2),
                 textposition='outside',
                 marker_color=color
             ))
@@ -327,14 +335,14 @@ if run_simulation:
         st.metric(
             label="Лучшее кол-во сделок",
             value=f"{int(best_deal['deals_per_week'])}/неделю",
-            delta=f"{best_deal['mean_profit']:.1f} прибыли"
+            delta=f"{best_deal['mean_profit']:.2f} прибыли"
         )
     
     with col2:
         max_profit = results_df['mean_profit'].max()
         st.metric(
             label="Максимальная средняя прибыль",
-            value=f"{max_profit:.1f}",
+            value=f"{max_profit:.2f}",
             delta="за период"
         )
     
@@ -342,7 +350,7 @@ if run_simulation:
         min_loss_prob = results_df['probability_loss_%'].min()
         st.metric(
             label="Минимальная вероятность убытка",
-            value=f"{min_loss_prob:.1f}%"
+            value=f"{min_loss_prob:.2f}%"
         )
     
     with col4:
@@ -357,7 +365,14 @@ if run_simulation:
     
     # Форматирование таблицы
     display_df = results_df.copy()
-    display_df.columns = [col.replace('_', ' ').title() for col in display_df.columns]
+    
+    # Создаем словарь для форматирования колонок
+    format_dict = {}
+    for col in display_df.columns:
+        if display_df[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
+            format_dict[col] = "{:.2f}".format
+    
+    display_df = display_df.rename(columns=lambda x: x.replace('_', ' ').title())
     
     # Выделяем лучшие значения цветом
     def highlight_max(s):
@@ -368,7 +383,9 @@ if run_simulation:
         is_min = s == s.min()
         return ['background-color: lightcoral' if v else '' for v in is_min]
     
-    styled_df = display_df.style.apply(highlight_max, subset=['Mean Profit', 'Sharpe Ratio'])\
+    # Применяем стили и форматирование
+    styled_df = display_df.style.format(format_dict)\
+                                .apply(highlight_max, subset=['Mean Profit', 'Sharpe Ratio'])\
                                 .apply(highlight_min, subset=['Probability Loss %', 'Std Profit'])
     
     st.dataframe(styled_df, use_container_width=True)
@@ -437,9 +454,9 @@ else:
     with st.expander("📋 Пример формата результатов"):
         example_df = pd.DataFrame({
             'Сделок в неделю': [2, 5, 10],
-            'Средняя прибыль': [36.2, 90.5, 181.0],
-            'Медианная прибыль': [35.8, 89.5, 179.0],
-            'Вероятность убытка %': [5.2, 1.8, 0.3],
+            'Средняя прибыль': [36.20, 90.50, 181.00],
+            'Медианная прибыль': [35.80, 89.50, 179.00],
+            'Вероятность убытка %': [5.20, 1.80, 0.30],
             'Коэффициент Шарпа': [1.25, 1.78, 2.12]
         })
         st.dataframe(example_df, use_container_width=True)
@@ -455,7 +472,7 @@ else:
                 "weeks": 26,
                 "deals_input": "1, 2, 3",
                 "win_rate": 0.85,
-                "avg_profit": 1.2,
+                "avg_profit": 1.20,
                 "n_simulations": 2000
             })
             st.rerun()
@@ -465,8 +482,8 @@ else:
             st.session_state.update({
                 "weeks": 104,
                 "deals_input": "10, 20, 30",
-                "win_rate": 0.6,
-                "avg_profit": 1.8,
+                "win_rate": 0.60,
+                "avg_profit": 1.80,
                 "n_simulations": 5000
             })
             st.rerun()
@@ -477,7 +494,7 @@ else:
                 "weeks": 52,
                 "deals_input": "5, 10, 15",
                 "win_rate": 0.75,
-                "avg_profit": 1.5,
+                "avg_profit": 1.50,
                 "n_simulations": 3000
             })
             st.rerun()
