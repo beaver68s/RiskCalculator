@@ -364,7 +364,7 @@ if run_simulation:
     st.subheader("📋 Детальные результаты")
     
     # Форматирование таблицы
-    display_df = results_df.copy()
+    display_df = results_df.copy().round(2)
     
     # Создаем словарь для форматирования колонок
     format_dict = {}
